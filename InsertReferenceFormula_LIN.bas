@@ -1,3 +1,4 @@
+Attribute VB_Name = "Module1"
 Sub InsertReferenceFormula_LIN()
     Dim compareSheet As Worksheet
     Dim testSheet As Worksheet
@@ -17,15 +18,15 @@ Sub InsertReferenceFormula_LIN()
     Set testSheet = ThisWorkbook.Sheets("test")
     
     ' Compare_CD의 데이터 범위를 열별로 설정
-    Set groupRange = compareSheet.Range("A2:A10") ' 그룹(A열)
-    Set widthRange = compareSheet.Range("B2:B10") ' WIDTH(B열)
-    Set cdRange = compareSheet.Range("C2:C10")    ' CD(C열)
-    Set gapRange = compareSheet.Range("H2:H10")   ' GAP(H열)
+    Set groupRange = compareSheet.Range("A2:A131") ' 그룹(A열)
+    Set widthRange = compareSheet.Range("B2:B131") ' WIDTH(B열)
+    Set cdRange = compareSheet.Range("D2:D131")    ' CD(C열)
+    Set gapRange = compareSheet.Range("C2:C131")   ' GAP(H열)
 
     ' Test 시트 데이터 채우기
     Dim i As Long, j As Long
-    For i = 2 To 4 ' A, B, C 그룹 반복 (Test 시트의 열)
-        For j = 2 To 4 ' WIDTH 값 반복 (Test 시트의 행)
+    For i = 2 To 5 ' A, B, C 그룹 반복 (Test 시트의 X)
+        For j = 2 To 11 ' WIDTH 값 반복 (Test 시트의 Y)
             ' Test 시트에서 기준 값 가져오기
             widthValue = testSheet.Cells(j, 1).Value ' WIDTH 값 (A열)
             groupValue = testSheet.Cells(1, i).Value ' 그룹 값 (첫 번째 행)
@@ -37,7 +38,7 @@ Sub InsertReferenceFormula_LIN()
                 If groupValue = "LS" Then
                     If groupRange.Cells(k, 1).Value = groupValue And _
                        gapRange.Cells(k, 1).Value = widthRange.Cells(k, 1).Value And _
-                       gapRange.Cells(k, 1).Value = widthValue Then
+                       widthRange.Cells(k, 1).Value = widthValue Then
                         matchIndex = k ' 인덱스 저장
                         Exit For
                     End If
