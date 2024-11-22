@@ -1,0 +1,154 @@
+Sub InsertReferenceFormula_rev_1121()
+    Dim compareSheet As Worksheet
+    Dim testSheet As Worksheet
+    Dim fullString As String
+    Dim tpName As String
+    Dim sheetName As String
+    Dim groupRange As Range
+    Dim widthRange As Range
+    Dim cdRange As Range
+    Dim gapRange As Range
+    Dim idrangeRange As Range
+    Dim widthValue As Double
+    Dim gapValue As Double
+    Dim idrangeValue As Double
+    Dim groupValue As String
+    Dim matchIndex As Long
+    Dim k As Long
+    Dim selectedRange As Range
+    Dim x1 As Long, y1 As Long, x2 As Long, y2 As Long
+    Dim matchCell As Range
+    Dim firstAddress As String
+    Dim matchFound As Boolean
+    matchIndex = 0
+    matchFound = False
+
+    On Error GoTo ErrorHandler ' 오류 핸들링 추가
+
+    ' 사용자가 선택한 범위 가져오기
+    On Error Resume Next ' 선택되지 않은 경우 오류 방지
+    Set selectedRange = Selection
+    On Error GoTo 0
+
+    If selectedRange Is Nothing Then
+        MsgBox "범위가 선택되지 않았습니다. 작업을 취소합니다.", vbCritical
+        Exit Sub
+    End If
+
+    ' 좌상단 좌표
+    row1 = selectedRange.Cells(1, 1).Row
+    col1 = selectedRange.Cells(1, 1).Column
+
+    ' 우하단 좌표
+    row2 = selectedRange.Cells(selectedRange.Rows.Count, selectedRange.Columns.Count).Row
+    col2 = selectedRange.Cells(selectedRange.Rows.Count, selectedRange.Columns.Count).Column
+
+    ' 시트 정의
+    Set testSheet = ActiveSheet
+    ' testSheet의 해당 셀 값에서 스트링 분리 (LIN, Compare_CD 형식)
+    fullString = testSheet.Cells(row1 - 1, col1 - 1).Value
+    ' 쉼표(,)를 기준으로 문자열 나누기
+    If InStr(fullString, ",") > 0 Then
+        tpName = Trim(Split(fullString, ",")(0)) ' 쉼표 이전 부분 (plot data type)
+        sheetName = Trim(Split(fullString, ",")(1)) ' 쉼표 이후 부분 (Compare_CD or Standard_CD)
+    Else
+        MsgBox "올바른 형식이 아닙니다. 'LIN,Compare_CD' 형식이어야 합니다.", vbCritical
+        Exit Sub
+    End If
+
+    ' Compare_CD의 데이터 범위를 열별로 설정
+    Set compareSheet = ThisWorkbook.Sheets(sheetName)
+    Set groupRange = compareSheet.Range("A2:A2502") ' 그룹
+    Set widthRange = compareSheet.Range("B2:B2502") ' WIDTH
+    Set cdRange = compareSheet.Range("E2:E2502")    ' MTT
+    Set gapRange = compareSheet.Range("C2:C2502")   ' GAP
+    Set idrangeRange = compareSheet.Range("D2:D2502")   ' ID range
+
+    ' tpName 분기 처리
+    If tpName = "LIN" Then
+        MsgBox "tpName이 LIN입니다. 기존 로직을 실행합니다.", vbInformation
+        ' Test 시트 데이터 채우기
+        Dim i As Long, j As Long
+        For i = col1 To col2 ' Table Header (X)
+            groupValue = testSheet.Cells(row1 - 1, i).Value ' 그룹 값 (첫 번째 행)
+            For j = row1 To row2 ' Table row index (Y)
+                widthValue = testSheet.Cells(j, col1 - 1).Value ' WIDTH 값 (A열)
+                matchFound = False
+                matchIndex = 0
+
+                ' LIN 로직 실행
+                Set matchCell = groupRange.Find(What:=groupValue, LookIn:=xlValues, LookAt:=xlWhole, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False)
+                If Not matchCell Is Nothing Then
+                    firstAddress = matchCell.Address    ' 첫 번째 검색 위치 저장
+                    Do
+                        matchIndex = matchCell.Row - groupRange.Row + 1
+                        If groupValue = "LS" Then
+                            If CDbl(gapRange.Cells(matchIndex, 1).Value) = CDbl(widthRange.Cells(matchIndex, 1).Value) And _
+                               CDbl(gapRange.Cells(matchIndex, 1).Value) = CDbl(widthValue) Then
+                                matchFound = True
+                                Exit Do
+                            End If
+                        Else
+                            If CDbl(widthRange.Cells(matchIndex, 1).Value) = CDbl(widthValue) Then
+                                matchFound = True
+                                Exit Do
+                            End If
+                        End If
+                        Set matchCell = groupRange.FindNext(matchCell)
+                    Loop While Not matchCell Is Nothing And matchCell.Address <> firstAddress
+                End If
+                If Not matchFound Then matchIndex = 0
+                If matchIndex > 0 Then
+                    testSheet.Cells(j, i).Formula = "=" & sheetName & "!" & cdRange.Cells(matchIndex, 1).Address(External:=False)
+                Else
+                    testSheet.Cells(j, i).Value = "=NA()"
+                End If
+            Next j
+        Next i
+
+    ElseIf tpName = "LS" Or tpName = "HOLE" Or tpName = "DOT" Or tpName = "SEND" Then
+        MsgBox "tpName이 LS, HOLE 또는 DOT입니다. 추가 로직을 실행합니다.", vbInformation
+        For i = col1 To col2 ' Table Header (X)
+            gapValue = testSheet.Cells(row1 - 1, i).Value
+            For j = row1 To row2 ' Table row index (Y)
+                widthValue = testSheet.Cells(j, col1 - 1).Value
+                Set matchCell = widthRange.Find(What:=widthValue, LookIn:=xlValues, LookAt:=xlWhole, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False)
+                matchFound = False
+                If Not matchCell Is Nothing Then
+                    firstAddress = matchCell.Address
+                    Do
+                        matchIndex = matchCell.Row - widthRange.Row + 1
+                        If CDbl(gapRange.Cells(matchIndex, 1).Value) = CDbl(gapValue) Then
+                            matchFound = True
+                            Exit Do
+                        End If
+                        Set matchCell = widthRange.FindNext(matchCell)
+                    Loop While Not matchCell Is Nothing And matchCell.Address <> firstAddress
+                End If
+                If Not matchFound Then matchIndex = 0
+                If matchIndex > 0 Then
+                    testSheet.Cells(j, i).Formula = "=" & sheetName & "!" & cdRange.Cells(matchIndex, 1).Address(External:=False)
+                Else
+                    testSheet.Cells(j, i).Value = "=NA()"
+                End If
+            Next j
+        Next i
+
+    ElseIf tpName = "ID500" Or tpName = "ID1000" Then
+        MsgBox "tpName이 ID500 또는 ID1000입니다. 로직을 비워둡니다.", vbInformation
+        ' ID500, ID1000 로직 비워둠
+
+    ElseIf tpName = "ELLIPSE" Then
+        MsgBox "tpName이 ELLIPSE입니다. 로직을 비워둡니다.", vbInformation
+        ' ELLIPSE 로직 비워둠
+
+    Else
+        MsgBox "알 수 없는 tpName: " & tpName, vbCritical
+    End If
+
+    MsgBox "작업이 완료되었습니다!", vbInformation
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "오류 발생: " & Err.Description, vbCritical
+End Sub
